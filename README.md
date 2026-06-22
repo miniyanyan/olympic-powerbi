@@ -6,6 +6,14 @@ An interactive Power BI dashboard analyzing 120+ years of Olympic data (1896–2
 
 ---
 
+## 🎬 Demo
+
+[![Watch the dashboard demo](function_screenshot/overview.png)](https://github.com/miniyanyan/olympic-powerbi/blob/main/dashboard_demo.mp4)
+
+▶ **[Watch the drill-through demo](https://github.com/miniyanyan/olympic-powerbi/blob/main/dashboard_demo.mp4)** — click the image above or the link to play `dashboard_demo.mp4` in GitHub's built-in video player.
+
+---
+
 ## 📊 Overview
 
 This project turns a multi-table, athlete-level dataset (300K+ event records) into a story-driven, three-page dashboard built around three questions:
@@ -37,9 +45,9 @@ Scraped from olympedia.org, covering the 1896 Athens Summer Games through the 20
 
 Every transformation is recorded as an applied step for full reproducibility. The dataset had several real-world quality issues worth handling explicitly:
 
-- **`born` field mixes formats** — some rows are full dates (`6 November 1991`), others are year-only (`1914`), and a few contain non-date strings. Rather than forcing a date type (which would error on the whole column), I extracted the trailing 4-digit **birth year** into a clean integer column.
+- **`born` field mixes formats** — some rows are full dates (`6 November 1991`), others are year-only (`1914`). Rather than forcing a date type (which would error on the whole column), I extracted the trailing 4-digit **birth year** into a clean integer column.
 - **`height` / `weight` stored as text** with non-numeric values mixed in. Converting in the report view failed outright, so I converted types in Power Query and then used **Replace Errors → null**, the standard two-step pattern for messy numeric columns. Valid numbers are preserved; bad values become null and are excluded at the measure level.
-- **`medal` nulls → "None"** so medal-winning status is explicit and countable. (See the debugging note below — the first attempt overwrote the whole column.)
+- **`medal` nulls → "None"** so medal-winning status is explicit and countable. (See the debugging note below — the first attempt accidentally overwrote the whole column.)
 - **`season` derived** from `edition` (`"1912 Summer Olympics"` → `Summer`/`Winter`) to power the season slicer.
 - **No blind deduplication** — uniqueness is defined by `athlete_id` + `result_id`, since one athlete competing in multiple events is valid.
 
@@ -65,9 +73,13 @@ A **star schema** with the results fact table at the center:
 
 The medal-tally table is intentionally left unrelated — it sits at a different grain (country × edition) than the fact table (athlete × event), so joining it would introduce ambiguity. It's kept purely for validation.
 
+![Star-schema data model in Power BI](function_screenshot/data_model.png)
+
 ---
 
 ## 🧮 3. DAX Measures
+
+Core aggregations:
 
 ```dax
 Total Medals =
@@ -87,6 +99,14 @@ DIVIDE(
     [Total Athletes])
 ```
 
+Dynamic drill-through title — the detail page header updates to show whichever country was drilled into:
+
+```dax
+Detail Title =
+"Medal Breakdown — " &
+SELECTEDVALUE('Olympic_Athlete_Event_Results'[country_noc], "All Countries")
+```
+
 ---
 
 ## 📈 4. The Dashboard
@@ -94,17 +114,33 @@ DIVIDE(
 ### Page 1 — Overview
 KPI cards (total athletes, medals, gold medals), a line chart of **female participation rate over time** (the core narrative), a **Top 15 Countries by Total Medals** bar chart, and a **Season slicer** — all cross-filtered.
 
+![Overview page — Summer Games](function_screenshot/overview.png)
+
+The season slicer reshapes the whole page. Switching to Winter swaps the leaderboard entirely:
+
+![Overview page — Winter Games](function_screenshot/overview_winter.png)
+
 ### Page 2 — Athlete Physique
 A scatter plot of **average height vs. average weight by sport**, revealing a clear positive correlation and distinct clusters (tall/heavy sports like rowing and basketball vs. compact sports like gymnastics).
 
+![Athlete physique — height vs. weight by sport](function_screenshot/athlete_physique.png)
+
 ### Page 3 — Country Detail (Drill-through)
-Right-click any country on Page 1 → **Drill through** → a dedicated detail page showing that country's medals by sport and its gold/silver/bronze breakdown (colored to match the medals themselves).
+Right-click any country on Page 1 → **Drill through** → a dedicated detail page showing that country's medals by sport and its gold/silver/bronze breakdown (colored to match the medals themselves). A **dynamic title** built with `SELECTEDVALUE` updates to name the selected country.
+
+![Country detail — medals by sport](function_screenshot/country_detail1.png)
+
+![Country detail — gold/silver/bronze breakdown](function_screenshot/country_detail2.png)
+
+The drill-through respects the season context too — here's a country's Winter-only breakdown:
+
+![Country detail — Winter Games](function_screenshot/country_detail_winter.png)
 
 ---
 
 ## 🐞 Debugging Notes (the interesting part)
 
-Three real problems surfaced and were diagnosed and fixed:
+Several real problems surfaced and were diagnosed and fixed:
 
 1. **Gold Medals equalled Total Medals.** The original measure wrapped `[Total Medals]` in `CALCULATE` with a medal filter, but the inner `CALCULATE` *overrode* the outer filter context. Verified the bug by running a DAX query comparing the measure against a direct `COUNTROWS` filter, then rewrote both measures using `FILTER` so the filters stack correctly.
 
@@ -128,7 +164,7 @@ Three real problems surfaced and were diagnosed and fixed:
 
 1. Install [Power BI Desktop](https://powerbi.microsoft.com/desktop/) (free, Windows only).
 2. Download the dataset from Kaggle and place the CSVs in a `/data` folder.
-3. Open `olympic.pbix`.
+3. Open `olympic-powerbi-dashboard.pbix`.
 4. If paths differ, update them under **Transform data → Data source settings**.
 
 ---
@@ -136,17 +172,18 @@ Three real problems surfaced and were diagnosed and fixed:
 ## 📁 Repository Structure
 
 ```
-olympic-powerbi-dashboard/
-├── data/
-│   ├── Olympic_Athlete_Event_Results.csv
-│   ├── Olympic_Athlete_Bio.csv
-│   ├── Olympic_Results.csv
-│   └── Olympic_Games_Medal_Tally.csv
-├── olympic.pbix
-├── screenshots/
+olympic-powerbi/
+├── data/                            # raw Kaggle CSVs (gitignored — download separately)
+├── function_screenshot/
 │   ├── overview.png
+│   ├── overview_winter.png
 │   ├── athlete_physique.png
-│   └── country_detail.png
+│   ├── data_model.png
+│   ├── country_detail1.png
+│   ├── country_detail2.png
+│   └── country_detail_winter.png
+├── dashboard_demo.mp4
+├── olympic-powerbi-dashboard.pbix
 └── README.md
 ```
 
