@@ -1,0 +1,6 @@
+# Raw Kaggle data — download separately (see README)
+data/*.csv
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
