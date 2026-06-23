@@ -1,4 +1,4 @@
-# Olympic Games: 120 Years of Gender Equality & Medal Dominance
+# Olympic Games Data Analysis: 120 Years of Gender Equality & Medal Trends
 
 An interactive Power BI dashboard analyzing 120+ years of Olympic data (1896–2022), tracing the rise of female participation, mapping national medal dominance, and exploring how athlete physiques differ across sports.
 
